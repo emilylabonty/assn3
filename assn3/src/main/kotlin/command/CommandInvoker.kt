@@ -15,15 +15,23 @@ class CommandInvoker {
     private val redoStack = ArrayDeque<Command>()
 
     fun run(command: Command) {
-        // TODO(student)
+        command.execute()
+        undoStack.addLast(command)
+        redoStack.clear()
     }
 
     fun undo() {
-        // TODO(student)
+        if (undoStack.isEmpty()) return
+        val command = undoStack.removeLast()
+        command.undo()
+        redoStack.addLast(command)
     }
 
     fun redo() {
-        // TODO(student)
+        if (redoStack.isEmpty()) return
+        val command = redoStack.removeLast()
+        command.execute()
+        undoStack.addLast(command)
     }
 
     fun canUndo() = undoStack.isNotEmpty()
