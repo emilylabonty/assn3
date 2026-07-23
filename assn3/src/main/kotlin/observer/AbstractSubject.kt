@@ -28,4 +28,4 @@ abstract class AbstractSubject<T> : Subject<T> {
         observers.toList().forEach { it.onUpdate(value) }
     }
 }
-}
+
