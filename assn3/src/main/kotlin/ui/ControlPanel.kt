@@ -9,8 +9,7 @@ import javafx.scene.control.ComboBox
 import javafx.scene.control.Label
 import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
-import command.Command
-import command.RobotActuator
+import command.SetTrackVelocitiesCommand
 
 /**
  * Manual controller. Each drive button should build one of YOUR command classes and submit it
@@ -83,21 +82,4 @@ class ControlPanel(
     }
 }
 
-private class SetTrackVelocitiesCommand(
-    private val actuator: RobotActuator,
-    private val left: Double,
-    private val right: Double,
-) : Command {
-    private var previousLeft = 0.0
-    private var previousRight = 0.0
 
-    override fun execute() {
-        previousLeft = actuator.leftTrackVelocity
-        previousRight = actuator.rightTrackVelocity
-        actuator.setTrackVelocities(left, right)
-    }
-
-    override fun undo() {
-        actuator.setTrackVelocities(previousLeft, previousRight)
-    }
-}
