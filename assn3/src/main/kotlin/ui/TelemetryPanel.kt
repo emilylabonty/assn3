@@ -3,6 +3,7 @@ package ui
 import javafx.geometry.Insets
 import javafx.scene.control.Label
 import javafx.scene.layout.VBox
+import javafx.scene.paint.Color
 import model.Robot
 import observer.Observer
 
@@ -20,6 +21,27 @@ class TelemetryPanel : VBox(6.0) {
     private val vision = valueLabel()
     private val line = valueLabel()
     private val collision = valueLabel()
+    private var boundRobot: Robot? = null
+
+    private val sonarObserver = Observer<Double> { value ->
+        sonar.text = "%.0f".format(value)
+    }
+
+    private val temperatureObserver = Observer<Double> { value ->
+        temperature.text = "%.1f°".format(value)
+    }
+
+    private val visionObserver = Observer<Color> { value ->
+        vision.text = formatColor(value)
+    }
+
+    private val lineObserver = Observer<Boolean> {
+        updateLineLabel()
+    }
+
+    private val collisionObserver = Observer<Boolean> { value ->
+        collision.text = formatBoolean(value)
+    }
 
     init {
         padding = Insets(12.0)
@@ -48,49 +70,31 @@ class TelemetryPanel : VBox(6.0) {
      * AbstractSubject.)
      */
     fun bindTo(robot: Robot) {
-        fun formatBoolean(value: Boolean) = if (value) "Yes" else "No"
-
-        fun formatColor(color: javafx.scene.paint.Color): String =
-            when {
-                color.red > 0.70 && color.green < 0.35 && color.blue < 0.35 -> "Red"
-                color.red > 0.80 && color.green > 0.70 && color.blue < 0.35 -> "Line"
-                else -> "Floor"
-            }
-
-        fun updateLineLabel() {
-            val left = robot.lineLeft.reading?.let(::formatBoolean) ?: "—"
-            val center = robot.lineCenter.reading?.let(::formatBoolean) ?: "—"
-            val right = robot.lineRight.reading?.let(::formatBoolean) ?: "—"
-            line.text = "$left / $center / $right"
+        boundRobot?.let { oldRobot ->
+            oldRobot.sonar.unsubscribe(sonarObserver)
+            oldRobot.temperature.unsubscribe(temperatureObserver)
+            oldRobot.vision.unsubscribe(visionObserver)
+            oldRobot.lineLeft.unsubscribe(lineObserver)
+            oldRobot.lineCenter.unsubscribe(lineObserver)
+            oldRobot.lineRight.unsubscribe(lineObserver)
+            oldRobot.collision.unsubscribe(collisionObserver)
         }
 
-        robot.sonar.subscribe(Observer { value ->
-            sonar.text = "%.0f".format(value)
-        })
+        boundRobot = robot
 
-        robot.temperature.subscribe(Observer { value ->
-            temperature.text = "%.1f°".format(value)
-        })
+        sonar.text = robot.sonar.reading?.let { "%.0f".format(it) } ?: "—"
+        temperature.text = robot.temperature.reading?.let { "%.1f°".format(it) } ?: "—"
+        vision.text = robot.vision.reading?.let(::formatColor) ?: "—"
+        updateLineLabel()
+        collision.text = robot.collision.reading?.let(::formatBoolean) ?: "—"
 
-        robot.vision.subscribe(Observer { value ->
-            vision.text = formatColor(value)
-        })
-
-        robot.lineLeft.subscribe(Observer {
-            updateLineLabel()
-        })
-
-        robot.lineCenter.subscribe(Observer {
-            updateLineLabel()
-        })
-
-        robot.lineRight.subscribe(Observer {
-            updateLineLabel()
-        })
-
-        robot.collision.subscribe(Observer { value ->
-            collision.text = formatBoolean(value)
-        })
+        robot.sonar.subscribe(sonarObserver)
+        robot.temperature.subscribe(temperatureObserver)
+        robot.vision.subscribe(visionObserver)
+        robot.lineLeft.subscribe(lineObserver)
+        robot.lineCenter.subscribe(lineObserver)
+        robot.lineRight.subscribe(lineObserver)
+        robot.collision.subscribe(collisionObserver)
     }
 
     private fun captioned(caption: String, value: Label): VBox =
@@ -103,4 +107,23 @@ class TelemetryPanel : VBox(6.0) {
             style = "-fx-font-size: ${size}px; -fx-text-fill: $color;" +
                 if (bold) " -fx-font-weight: bold;" else ""
         }
+}
+
+private fun formatBoolean(value: Boolean) = if (value) "Yes" else "No"
+
+private fun formatColor(color: Color): String =
+    when {
+        color.red > 0.70 && color.green < 0.35 && color.blue < 0.35 -> "Red"
+        color.red > 0.80 && color.green > 0.70 && color.blue < 0.35 -> "Line"
+        else -> "Floor"
+    }
+
+private fun updateLineLabel() {
+    val robot = boundRobot
+
+    val left = robot?.lineLeft?.reading?.let(::formatBoolean) ?: "—"
+    val center = robot?.lineCenter?.reading?.let(::formatBoolean) ?: "—"
+    val right = robot?.lineRight?.reading?.let(::formatBoolean) ?: "—"
+
+    line.text = "$left / $center / $right"
 }

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="SensorTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-07-19T03:16:28.187Z" hostname="EmilyLenovo" time="0.024">
+  <properties/>
+  <testcase name="line sensor detects on vs off the line()" classname="SensorTest" time="0.007"/>
+  <testcase name="collision sensor fires while the robot drives into a wall()" classname="SensorTest" time="0.004"/>
+  <testcase name="sonar reports distance to an obstacle straight ahead()" classname="SensorTest" time="0.001"/>
+  <testcase name="sonar senses the outer wall when there is no obstacle()" classname="SensorTest" time="0.004"/>
+  <testcase name="temperature peaks at the source and cools with distance()" classname="SensorTest" time="0.003"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="KinematicsTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-07-19T03:16:28.018Z" hostname="EmilyLenovo" time="0.16">
+  <properties/>
+  <testcase name="opposite track speeds rotate in place()" classname="KinematicsTest" time="0.139"/>
+  <testcase name="equal track speeds drive in a straight line()" classname="KinematicsTest" time="0.007"/>
+  <testcase name="an obstacle blocks forward translation()" classname="KinematicsTest" time="0.007"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
