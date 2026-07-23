@@ -14,16 +14,18 @@ package observer
  * the telemetry panel stays blank and programs receive no callbacks.
  */
 abstract class AbstractSubject<T> : Subject<T> {
+    private val observers = mutableSetOf<Observer<T>>()
 
     override fun subscribe(observer: Observer<T>) {
-        // TODO(student): remember this observer
+        observers.add(observer)
     }
 
     override fun unsubscribe(observer: Observer<T>) {
-        // TODO(student): forget this observer
+        observers.remove(observer)
     }
 
     override fun notifyObservers(value: T) {
-        // TODO(student): deliver `value` to every subscribed observer via onUpdate(value)
+        observers.toList().forEach { it.onUpdate(value) }
     }
+}
 }
