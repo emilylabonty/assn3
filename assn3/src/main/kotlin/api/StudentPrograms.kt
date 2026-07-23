@@ -15,7 +15,6 @@ package api
  */
 import command.Command
 import command.RobotActuator
-import command.SetTrackVelocitiesCommand
 import javafx.scene.paint.Color
 import observer.Observer
 
@@ -31,6 +30,7 @@ object StudentPrograms {
 private class LineMazeProgram : RobotProgram {
     override val name = "Line Maze Follower"
 
+    private val drive = ProgramDrive()
     private var robot: RobotApi? = null
     private var leftOnLine = false
     private var centerOnLine = false
@@ -53,6 +53,7 @@ private class LineMazeProgram : RobotProgram {
 
     override fun startProgram(robot: RobotApi) {
         this.robot = robot
+        drive.reset()
         robot.sensors.lineLeft.subscribe(leftObserver)
         robot.sensors.lineCenter.subscribe(centerObserver)
         robot.sensors.lineRight.subscribe(rightObserver)
@@ -62,7 +63,7 @@ private class LineMazeProgram : RobotProgram {
         robot.sensors.lineLeft.unsubscribe(leftObserver)
         robot.sensors.lineCenter.unsubscribe(centerObserver)
         robot.sensors.lineRight.unsubscribe(rightObserver)
-        stop(robot)
+        drive.stop(robot)
         this.robot = null
     }
 
@@ -75,13 +76,14 @@ private class LineMazeProgram : RobotProgram {
             else -> 65.0 to -65.0
         }
 
-        robot.perform(SetTrackVelocitiesCommand(robot.actuator, speeds.first, speeds.second))
+        drive.set(robot, speeds.first, speeds.second)
     }
 }
 
 private class TemperatureGradientProgram : RobotProgram {
     override val name = "Temperature Seeker"
 
+    private val drive = ProgramDrive()
     private var robot: RobotApi? = null
     private var lastTemperature: Double? = null
     private var turningTicks = 0
@@ -90,7 +92,8 @@ private class TemperatureGradientProgram : RobotProgram {
         val robot = robot ?: return@Observer
 
         if (temperature >= 92.0) {
-            stop(robot)
+            drive.stop(robot)
+            this.robot = null
             return@Observer
         }
 
@@ -125,7 +128,7 @@ private class TemperatureGradientProgram : RobotProgram {
 
     override fun stopProgram(robot: RobotApi) {
         robot.sensors.temperature.unsubscribe(temperatureObserver)
-        stop(robot)
+        drive.stop(robot)
         this.robot = null
     }
 }
@@ -133,6 +136,7 @@ private class TemperatureGradientProgram : RobotProgram {
 private class RedBallFinderProgram : RobotProgram {
     override val name = "Red Ball Finder"
 
+    private val drive = ProgramDrive()
     private var robot: RobotApi? = null
     private var seesRed = false
     private var sonarDistance = 320.0
@@ -165,7 +169,7 @@ private class RedBallFinderProgram : RobotProgram {
         robot.sensors.vision.unsubscribe(visionObserver)
         robot.sensors.sonar.unsubscribe(sonarObserver)
         robot.sensors.collision.unsubscribe(collisionObserver)
-        stop(robot)
+        drive.stop(robot)
         this.robot = null
     }
 
@@ -189,14 +193,32 @@ private class RedBallFinderProgram : RobotProgram {
             else -> 115.0 to 80.0
         }
 
-        robot.perform(SetTrackVelocitiesCommand(robot.actuator, speeds.first, speeds.second))
+        drive.set(robot, speeds.first, speeds.second)
     }
 
     private fun isRed(color: Color): Boolean =
         color.red > 0.70 && color.green < 0.35 && color.blue < 0.35
 }
 
-private fun stop(robot: RobotApi) {
-    robot.perform(SetTrackVelocitiesCommand(robot.actuator, 0.0, 0.0))
+private class ProgramDrive {
+    private var lastLeft: Double? = null
+    private var lastRight: Double? = null
+
+    fun set(robot: RobotApi, left: Double, right: Double) {
+        if (lastLeft == left && lastRight == right) return
+
+        lastLeft = left
+        lastRight = right
+        drive.set(robot, speeds.first, speeds.second)
+    }
+
+    fun stop(robot: RobotApi) {
+        set(robot, 0.0, 0.0)
+    }
+
+    fun reset() {
+        lastLeft = null
+        lastRight = null
+    }
 }
 
