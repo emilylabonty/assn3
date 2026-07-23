@@ -4,6 +4,7 @@ import javafx.geometry.Insets
 import javafx.scene.control.Label
 import javafx.scene.layout.VBox
 import model.Robot
+import observer.Observer
 
 /**
  * A live readout of the sensor values — the *consumer* side of the Observer pattern.
@@ -47,7 +48,49 @@ class TelemetryPanel : VBox(6.0) {
      * AbstractSubject.)
      */
     fun bindTo(robot: Robot) {
-        // TODO(student): subscribe observers to robot's sensors (see the doc comment above).
+        fun formatBoolean(value: Boolean) = if (value) "Yes" else "No"
+
+        fun formatColor(color: javafx.scene.paint.Color): String =
+            when {
+                color.red > 0.70 && color.green < 0.35 && color.blue < 0.35 -> "Red"
+                color.red > 0.80 && color.green > 0.70 && color.blue < 0.35 -> "Line"
+                else -> "Floor"
+            }
+
+        fun updateLineLabel() {
+            val left = robot.lineLeft.reading?.let(::formatBoolean) ?: "—"
+            val center = robot.lineCenter.reading?.let(::formatBoolean) ?: "—"
+            val right = robot.lineRight.reading?.let(::formatBoolean) ?: "—"
+            line.text = "$left / $center / $right"
+        }
+
+        robot.sonar.subscribe(Observer { value ->
+            sonar.text = "%.0f".format(value)
+        })
+
+        robot.temperature.subscribe(Observer { value ->
+            temperature.text = "%.1f°".format(value)
+        })
+
+        robot.vision.subscribe(Observer { value ->
+            vision.text = formatColor(value)
+        })
+
+        robot.lineLeft.subscribe(Observer {
+            updateLineLabel()
+        })
+
+        robot.lineCenter.subscribe(Observer {
+            updateLineLabel()
+        })
+
+        robot.lineRight.subscribe(Observer {
+            updateLineLabel()
+        })
+
+        robot.collision.subscribe(Observer { value ->
+            collision.text = formatBoolean(value)
+        })
     }
 
     private fun captioned(caption: String, value: Label): VBox =
