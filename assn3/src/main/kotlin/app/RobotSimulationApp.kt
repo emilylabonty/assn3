@@ -18,6 +18,8 @@ import ui.ControlPanel
 import ui.ProgramPanel
 import ui.SimulationCanvas
 import ui.TelemetryPanel
+import command.Command
+import command.RobotActuator
 
 /** Wires the model, the application interface, and the JavaFX UI together and runs the sim loop. */
 class RobotSimulationApp : Application() {
@@ -96,9 +98,7 @@ class RobotSimulationApp : Application() {
     }
 
     private fun drive(left: Double, right: Double) {
-        // TODO(student): keyboard control — build one of your commands and run it via the API:
-        //     api.perform(MySetVelocityCommand(api.actuator, left, right))
-        // (Same idea as the on-screen buttons in ControlPanel.)
+        api.perform(SetTrackVelocitiesCommand(api.actuator, left, right))
     }
 
     private fun switchEnvironment(envClass: Class<*>) {
@@ -112,5 +112,24 @@ class RobotSimulationApp : Application() {
         programRunner.stop()
         simulation.resetRobot()
         telemetry.bindTo(simulation.robot)
+    }
+}
+
+private class SetTrackVelocitiesCommand(
+    private val actuator: RobotActuator,
+    private val left: Double,
+    private val right: Double,
+) : Command {
+    private var previousLeft = 0.0
+    private var previousRight = 0.0
+
+    override fun execute() {
+        previousLeft = actuator.leftTrackVelocity
+        previousRight = actuator.rightTrackVelocity
+        actuator.setTrackVelocities(left, right)
+    }
+
+    override fun undo() {
+        actuator.setTrackVelocities(previousLeft, previousRight)
     }
 }
