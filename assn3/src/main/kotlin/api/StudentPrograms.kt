@@ -19,84 +19,64 @@ import command.SetTrackVelocitiesCommand
 import javafx.scene.paint.Color
 import observer.Observer
 
-private class DriveCommandFactory(private val robot: RobotApi) {
-    fun setSpeeds(left: Double, right: Double): Command =
-        SetTrackVelocitiesCommand(robot.actuator, left, right)
+package api
 
-    fun forward(speed: Double): Command =
+import command.Command
+import command.SetTrackVelocitiesCommand
+import javafx.scene.paint.Color
+import observer.Observer
+
+private data class DriveAction(
+    val left: Double,
+    val right: Double,
+)
+
+private class DriveController(private val robot: RobotApi) {
+    private var lastAction: DriveAction? = null
+
+    fun setSpeeds(left: Double, right: Double) {
+        perform(DriveAction(left, right))
+    }
+
+    fun forward(speed: Double) {
         setSpeeds(speed, speed)
+    }
 
-    fun stop(): Command =
+    fun stop() {
         setSpeeds(0.0, 0.0)
+    }
 
-    fun spinLeft(speed: Double): Command =
+    fun spinLeft(speed: Double) {
         setSpeeds(speed, -speed)
+    }
 
-    fun spinRight(speed: Double): Command =
-        setSpeeds(-speed, speed)
-
-    fun veerLeft(innerSpeed: Double, outerSpeed: Double): Command =
+    fun veerLeft(innerSpeed: Double, outerSpeed: Double) {
         setSpeeds(innerSpeed, outerSpeed)
+    }
 
-    fun veerRight(outerSpeed: Double, innerSpeed: Double): Command =
+    fun veerRight(outerSpeed: Double, innerSpeed: Double) {
         setSpeeds(outerSpeed, innerSpeed)
+    }
 
-    fun backAndTurn(left: Double, right: Double): Command =
+    fun backAndTurn(left: Double, right: Double) {
         setSpeeds(left, right)
-}
-
-private class ProgramDrive {
-    private var lastLeft: Double? = null
-    private var lastRight: Double? = null
-
-    fun setSpeeds(robot: RobotApi, left: Double, right: Double) {
-        if (lastLeft == left && lastRight == right) return
-
-        lastLeft = left
-        lastRight = right
-        robot.perform(DriveCommandFactory(robot).setSpeeds(left, right))
     }
 
-    fun forward(robot: RobotApi, speed: Double) {
-        setSpeeds(robot, speed, speed)
+    private fun perform(action: DriveAction) {
+        if (action == lastAction) return
+
+        lastAction = action
+        robot.perform(commandFor(action))
     }
 
-    fun stop(robot: RobotApi) {
-        setSpeeds(robot, 0.0, 0.0)
-    }
-
-    fun spinLeft(robot: RobotApi, speed: Double) {
-        setSpeeds(robot, speed, -speed)
-    }
-
-    fun spinRight(robot: RobotApi, speed: Double) {
-        setSpeeds(robot, -speed, speed)
-    }
-
-    fun veerLeft(robot: RobotApi, innerSpeed: Double, outerSpeed: Double) {
-        setSpeeds(robot, innerSpeed, outerSpeed)
-    }
-
-    fun veerRight(robot: RobotApi, outerSpeed: Double, innerSpeed: Double) {
-        setSpeeds(robot, outerSpeed, innerSpeed)
-    }
-
-    fun backAndTurn(robot: RobotApi, left: Double, right: Double) {
-        setSpeeds(robot, left, right)
-    }
-
-    fun reset() {
-        lastLeft = null
-        lastRight = null
-    }
+    private fun commandFor(action: DriveAction): Command =
+        SetTrackVelocitiesCommand(robot.actuator, action.left, action.right)
 }
 
 private class LineMazeProgram : RobotProgram {
     override val name = "Line Maze Follower"
 
-    private val driver = ProgramDrive()
-
-    private var robot: RobotApi? = null
+    private var driver: DriveController? = null
     private var leftOnLine = false
     private var centerOnLine = false
     private var rightOnLine = false
@@ -117,8 +97,7 @@ private class LineMazeProgram : RobotProgram {
     }
 
     override fun startProgram(robot: RobotApi) {
-        this.robot = robot
-        driver.reset()
+        driver = DriveController(robot)
         robot.sensors.lineLeft.subscribe(leftObserver)
         robot.sensors.lineCenter.subscribe(centerObserver)
         robot.sensors.lineRight.subscribe(rightObserver)
@@ -128,18 +107,18 @@ private class LineMazeProgram : RobotProgram {
         robot.sensors.lineLeft.unsubscribe(leftObserver)
         robot.sensors.lineCenter.unsubscribe(centerObserver)
         robot.sensors.lineRight.unsubscribe(rightObserver)
-        driver.stop(robot)
-        this.robot = null
+        driver?.stop()
+        driver = null
     }
 
     private fun drive() {
-        val robot = robot ?: return
+        val driver = driver ?: return
 
         when {
-            centerOnLine -> driver.forward(robot, 95.0)
-            leftOnLine -> driver.veerLeft(robot, innerSpeed = 45.0, outerSpeed = 110.0)
-            rightOnLine -> driver.veerRight(robot, outerSpeed = 110.0, innerSpeed = 45.0)
-            else -> driver.spinLeft(robot, 65.0)
+            centerOnLine -> driver.forward(95.0)
+            leftOnLine -> driver.veerLeft(innerSpeed = 45.0, outerSpeed = 110.0)
+            rightOnLine -> driver.veerRight(outerSpeed = 110.0, innerSpeed = 45.0)
+            else -> driver.spinLeft(65.0)
         }
     }
 }
@@ -147,17 +126,15 @@ private class LineMazeProgram : RobotProgram {
 private class TemperatureGradientProgram : RobotProgram {
     override val name = "Temperature Seeker"
 
-    private val driver = ProgramDrive()
-
-    private var robot: RobotApi? = null
+    private var driver: DriveController? = null
     private var lastTemperature: Double? = null
     private var turningTicks = 0
 
     private val temperatureObserver = Observer<Double> { temperature ->
-        val robot = robot ?: return@Observer
+        val driver = driver ?: return@Observer
 
         if (temperature >= 92.0) {
-            driver.stop(robot)
+            driver.stop()
             return@Observer
         }
 
@@ -165,46 +142,43 @@ private class TemperatureGradientProgram : RobotProgram {
         lastTemperature = temperature
 
         when {
-            previous == null -> driver.forward(robot, 100.0)
+            previous == null -> driver.forward(100.0)
 
             temperature >= previous - 0.1 -> {
                 turningTicks = 0
-                driver.forward(robot, 110.0)
+                driver.forward(110.0)
             }
 
             turningTicks < 18 -> {
                 turningTicks++
-                driver.spinLeft(robot, 75.0)
+                driver.spinLeft(75.0)
             }
 
             else -> {
                 turningTicks = 0
-                driver.forward(robot, 90.0)
+                driver.forward(90.0)
             }
         }
     }
 
     override fun startProgram(robot: RobotApi) {
-        this.robot = robot
+        driver = DriveController(robot)
         lastTemperature = null
         turningTicks = 0
-        driver.reset()
         robot.sensors.temperature.subscribe(temperatureObserver)
     }
 
     override fun stopProgram(robot: RobotApi) {
         robot.sensors.temperature.unsubscribe(temperatureObserver)
-        driver.stop(robot)
-        this.robot = null
+        driver?.stop()
+        driver = null
     }
 }
 
 private class RedBallFinderProgram : RobotProgram {
     override val name = "Red Ball Finder"
 
-    private val driver = ProgramDrive()
-
-    private var robot: RobotApi? = null
+    private var driver: DriveController? = null
     private var seesRed = false
     private var sonarDistance = 320.0
     private var colliding = false
@@ -226,8 +200,7 @@ private class RedBallFinderProgram : RobotProgram {
     }
 
     override fun startProgram(robot: RobotApi) {
-        this.robot = robot
-        driver.reset()
+        driver = DriveController(robot)
         robot.sensors.vision.subscribe(visionObserver)
         robot.sensors.sonar.subscribe(sonarObserver)
         robot.sensors.collision.subscribe(collisionObserver)
@@ -237,34 +210,34 @@ private class RedBallFinderProgram : RobotProgram {
         robot.sensors.vision.unsubscribe(visionObserver)
         robot.sensors.sonar.unsubscribe(sonarObserver)
         robot.sensors.collision.unsubscribe(collisionObserver)
-        driver.stop(robot)
-        this.robot = null
+        driver?.stop()
+        driver = null
     }
 
     private fun drive() {
-        val robot = robot ?: return
+        val driver = driver ?: return
 
         when {
-            seesRed -> driver.forward(robot, 100.0)
+            seesRed -> driver.forward(100.0)
 
             colliding -> {
                 avoidTicks = 18
-                driver.backAndTurn(robot, left = -80.0, right = 90.0)
+                driver.backAndTurn(left = -80.0, right = 90.0)
             }
 
             avoidTicks > 0 -> {
                 avoidTicks--
-                driver.spinLeft(robot, 75.0)
+                driver.spinLeft(75.0)
             }
 
             sonarDistance < 55.0 -> {
                 avoidTicks = 14
-                driver.spinLeft(robot, 80.0)
+                driver.spinLeft(80.0)
             }
 
-            sonarDistance < 120.0 -> driver.veerLeft(robot, innerSpeed = 55.0, outerSpeed = 105.0)
+            sonarDistance < 120.0 -> driver.veerLeft(innerSpeed = 55.0, outerSpeed = 105.0)
 
-            else -> driver.veerRight(robot, outerSpeed = 115.0, innerSpeed = 80.0)
+            else -> driver.veerRight(outerSpeed = 115.0, innerSpeed = 80.0)
         }
     }
 
@@ -279,3 +252,4 @@ object StudentPrograms {
         registry.register(RedBallFinderProgram())
     }
 }
+
